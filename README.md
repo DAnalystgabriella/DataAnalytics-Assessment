@@ -1,60 +1,83 @@
-## Cowrywise: Data Analyst Technical Assessment
+# 📊 Cowrywise: Data Analyst Technical Assessment
 
-This repository contains SQL queries addressing four core business scenarios, along with explanations of the approach and challenges encountered.
-
----
-
-### 1. High-Value Customers with Multiple Products
-
-**Objective:** Identify customers with at least one funded savings plan **and** one funded investment plan, sorted by total deposits.
-
-**Approach:**
-
-1. **Aggregate savings inflows:** Use `confirmed_amount` to sum deposits per customer and count funded savings accounts (`confirmed_amount > 0`).
-2. **Aggregate investment plans:** Filter `plans_plan` by `is_a_fund = 1` to count active investment plans per customer.
-3. **Join with users:** Inner join both aggregates to return customers satisfying both criteria, ordering by total deposit descending.
+This repository contains SQL queries that analyze customer behavior and product engagement. Each query addresses a key business scenario using a well-defined schema and optimized logic.
 
 ---
 
-### 2. Transaction Frequency Analysis
+## 1. 🏦 High-Value Customers with Multiple Products
 
-**Objective:** Segment customers by their monthly transaction frequency over the past 12 months.
+**Objective**: Identify customers who have both funded savings accounts and active investment plans, ranked by total deposits.
 
-**Approach:**
-
-1. **Monthly counts:** Group savings transactions by `owner_id` and month (`DATE_FORMAT(transaction_date, '%Y-%m')`), counting all transaction events (inflows and withdrawals).
-2. **Average per customer:** Compute each user’s average transactions per month over the rolling 12‑month window.
-3. **Categorization:** Bucket users into High (≥10), Medium (3–9), and Low (≤2) frequency groups and summarize counts and averages.
-
-**Notes:**
-
-* Both `confirmed_amount` and `amount_withdrawn` rows are included, since frequency concerns any transaction event.
+**Highlights**:
+- Uses `confirmed_amount > 0` to ensure actual savings inflows.
+- Filters plans where `is_a_fund = 1` to get investment plan.
+- Returns full name, count of savings/investment products, and total deposits.
+- Sorted by descending total deposit.
 
 ---
 
-### 3. Account Inactivity Alert
+## 2. 🔁 12-Month Transaction Frequency Analysis
 
-**Objective:** Flag active plans (savings or investment) with no inflow transactions in the last 365 days.
+**Objective**: Categorize users based on their average monthly transaction activity over the past year.
 
-**Approach:**
+**Method**:
+- Dynamically generates the last 12 months using a recursive CTE.
+- Cross joins users with months to ensure 0-activity months are included.
+- Aggregates monthly transaction counts (savings inflows and withdrawals).
+- Buckets users as:
+  - **High Frequency**: ≥10 transactions/month
+  - **Medium Frequency**: 3–9 transactions/month
+  - **Low Frequency**: <3 transactions/month
 
-1. **Active plans:** Filter `plans_plan` for `is_archived = 0` and `is_deleted = 0`, preserving flags for savings vs. investment.
-2. **Last inflow date:** Use `confirmed_amount > 0` in `savings_savingsaccount` to find the most recent deposit per plan.
-3. **Filter inactivity:** Compare the last inflow date against a cutoff (`DATE_SUB(CURDATE(), INTERVAL 365 DAY)`), including plans with `NULL` (never transacted).
-4. **Classification:** Label each plan as "Savings" or "Investment" based on flags (`is_regular_savings` vs. `is_a_fund`).
+**Output**: Frequency category, user count per bucket, and average transactions per user.
+
+---
+
+## 3. ⛔ Account Inactivity Alert (No Inflows in 12 Months)
+
+**Objective**: Flag savings and investment plans with no inflow in the past 365 days.
+
+**Logic**:
+- Filters for active (non-archived, non-deleted) plans.
+- Finds the most recent `confirmed_amount > 0` per plan.
+- Returns plans with no deposit activity since cutoff or never funded.
+
+**Output**: Plan ID, owner, type (Savings/Investment), last inflow date, and inactivity duration (days).
 
 ---
 
-### 4. Customer Lifetime Value (CLV) Estimation
+## 4. 💰 Customer Lifetime Value (CLV) Estimation
 
-**Objective:** Estimate each customer’s lifetime value based on average monthly transaction volume and a profit rate of 0.1% per transaction value.
+**Objective**: Estimate lifetime value based on average monthly deposit volume and a 0.1% margin.
 
-**Approach:**
+**Formula**:
+*CLV = (Total Deposits / Tenure in Months) × 12 × 0.001*
 
-1. **Total volume:** Sum `confirmed_amount` per customer in `savings_savingsaccount`.
-2. **Tenure calculation:** Compute months since `date_joined`, with a minimum of 1 month to avoid division by zero.
-3. **CLV formula:** `CLV = (total_volume / tenure_months) * 12 * 0.001`, rounding to two decimals.
-4. **Sorting:** Order customers by descending estimated CLV.
+**Assumptions**:
+- Only `confirmed_amount` used to measure actual inflows.
+- Tenure is at least 1 month (using `GREATEST(..., 1)`) to avoid division by zero.
+
+**Output**: Customer ID, name, tenure (months), total inflows, and estimated CLV (2 decimal precision), sorted descending.
 
 ---
+
+## ✅ Schema Notes & Clarifications
+
+- **Savings inflows**: Tracked via `savings_savingsaccount.confirmed_amount`.
+- **Withdrawals**: Excluded unless analyzing frequency.
+- **Plan types**:
+  - `is_a_fund = 1`: Investment plan
+  - `is_regular_savings = 1`: Savings plan
+- **Null handling**: All averages safely zero-filled to avoid skew.
+
 ---
+
+## 📁 Folder Structure
+
+```bash
+DataAnalytics-Assessment/
+├── 01_high_value_customers.sql
+├── 02_transaction_frequency.sql
+├── 03_inactive_plans.sql
+└── 04_customer_lifetime_value.sql
+
