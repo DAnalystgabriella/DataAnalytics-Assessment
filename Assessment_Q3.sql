@@ -1,21 +1,44 @@
--- 1. Determine each plan’s most recent savings transaction date
-WITH last_txn AS (
-  SELECT
-    plan_id,
-    MAX(transaction_date) AS last_transaction_date
-  FROM savings_savingsaccount
-  GROUP BY plan_id
-)
+-- ===================================================================
+-- Find all active plans with no savings transactions in the last 365 days
+-- ===================================================================
 
--- 2. Select active plans with no inflow in the past year
+-- Pre-compute the cutoff date once
+SET @cutoff := DATE_SUB(CURDATE(), INTERVAL 365 DAY);
+
+WITH
+  -- A. Only consider currently active, non-deleted plans
+  ActivePlans AS (
+    SELECT
+      id,
+      owner_id,
+      is_regular_savings,
+      open_savings_plan,
+      is_emergency_plan,
+      is_personal_challenge,
+      is_donation_plan,
+      is_a_goal,
+      is_fixed_investment,
+      is_a_fund,
+      is_managed_portfolio
+    FROM plans_plan
+    WHERE is_archived = 0
+      AND is_deleted  = 0
+  ),
+
+  -- B. For every plan, find its most recent savings txn date (if any)
+  LastTxn AS (
+    SELECT
+      plan_id,
+      MAX(transaction_date) AS last_transaction_date
+    FROM savings_savingsaccount
+    GROUP BY plan_id
+  )
+
 SELECT
-  p.id                           AS plan_id,              -- unique plan identifier
-  p.owner_id                     AS owner_id,             -- the customer who owns the plan
+  p.id AS plan_id,                       -- unique plan identifier
+  p.owner_id,                            -- customer who owns it
 
-  /* Derive a human‑readable “type” label based on plan flags:
-     - Savings: regular savings, open savings, emergency plans, personal challenges, donation plans, goals
-     - Investment: fixed investments, funds, managed portfolios
-     - Unknown: any other combination */
+  -- Classify plan as Savings, Investment, or Unknown
   CASE
     WHEN p.is_regular_savings    = 1
       OR p.open_savings_plan     = 1
@@ -29,25 +52,26 @@ SELECT
       OR p.is_managed_portfolio  = 1
       THEN 'Investment'
     ELSE 'Unknown'
-  END                            AS type,
+  END AS type,
 
-  lt.last_transaction_date      AS last_transaction_date, -- NULL if never had a savings txn
-  DATEDIFF(CURDATE(), lt.last_transaction_date)
-    AS inactivity_days           -- number of days since last transaction
+  lt.last_transaction_date,             -- NULL if never transacted
 
-FROM plans_plan p
-LEFT JOIN last_txn lt
-  ON lt.plan_id = p.id
+  -- Days since last txn; treat NULL as very large to sort highest first
+  COALESCE(
+    DATEDIFF(CURDATE(), lt.last_transaction_date),
+    9999
+  ) AS inactivity_days
+
+FROM ActivePlans AS p
+
+  -- bring in the last txn date per plan
+  LEFT JOIN LastTxn AS lt
+    ON lt.plan_id = p.id
 
 WHERE
-  -- Only include plans that are currently active
-  p.is_archived = 0
-  AND p.is_deleted = 0
+  -- include plans with no txn in the last 365 days (or never)
+  (lt.last_transaction_date < @cutoff
+   OR lt.last_transaction_date IS NULL)
 
-  -- Flag plans with no transactions in the past 365 days (or never transacted)
-  AND (
-    lt.last_transaction_date IS NULL
-    OR lt.last_transaction_date < DATE_SUB(CURDATE(), INTERVAL 365 DAY)
-  )
-
-ORDER BY inactivity_days DESC;  -- show the most inactive accounts first
+ORDER BY
+  inactivity_days DESC;                  -- most inactive first
