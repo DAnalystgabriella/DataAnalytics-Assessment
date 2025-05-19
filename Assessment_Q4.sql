@@ -1,5 +1,5 @@
 -- =============================================================
--- Customer Lifetime Value (CLV) Calculation – Optimized Version
+-- Customer Lifetime Value (CLV) Estimation
 -- =============================================================
 
 -- 0. Compute “today” once to avoid per-row NOW() calls
@@ -10,7 +10,7 @@ WITH
   SavingsAgg AS (
     SELECT
       owner_id,
-      SUM(amount) AS total_transactions  -- total transaction volume per user
+      SUM(confirmed_amount) AS total_transactions  -- total transaction volume per user
     FROM
       savings_savingsaccount
     GROUP BY

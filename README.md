@@ -9,6 +9,7 @@ This repository contains SQL queries that analyze customer behavior and product 
 **Objective**: Identify customers who have both funded savings accounts and active investment plans, ranked by total deposits.
 
 **Highlights**:
+
 - Uses `confirmed_amount > 0` to ensure actual savings inflows.
 - Filters plans where `is_a_fund = 1` to get investment plan.
 - Returns full name, count of savings/investment products, and total deposits.
@@ -21,6 +22,7 @@ This repository contains SQL queries that analyze customer behavior and product 
 **Objective**: Categorize users based on their average monthly transaction activity over the past year.
 
 **Method**:
+
 - Dynamically generates the last 12 months using a recursive CTE.
 - Cross joins users with months to ensure 0-activity months are included.
 - Aggregates monthly transaction counts (savings inflows and withdrawals).
@@ -38,6 +40,7 @@ This repository contains SQL queries that analyze customer behavior and product 
 **Objective**: Flag savings and investment plans with no inflow in the past 365 days.
 
 **Logic**:
+
 - Filters for active (non-archived, non-deleted) plans.
 - Finds the most recent `confirmed_amount > 0` per plan.
 - Returns plans with no deposit activity since cutoff or never funded.
@@ -51,9 +54,10 @@ This repository contains SQL queries that analyze customer behavior and product 
 **Objective**: Estimate lifetime value based on average monthly deposit volume and a 0.1% margin.
 
 **Formula**:
-*CLV = (Total Deposits / Tenure in Months) × 12 × 0.001*
+_CLV = (Total Deposits / Tenure in Months) × 12 × 0.001_
 
 **Assumptions**:
+
 - Only `confirmed_amount` used to measure actual inflows.
 - Tenure is at least 1 month (using `GREATEST(..., 1)`) to avoid division by zero.
 
@@ -76,8 +80,9 @@ This repository contains SQL queries that analyze customer behavior and product 
 
 ```bash
 DataAnalytics-Assessment/
-├── 01_high_value_customers.sql
-├── 02_transaction_frequency.sql
-├── 03_inactive_plans.sql
-└── 04_customer_lifetime_value.sql
+├── Assessment_Q1.sql
+├── Assessment_Q2.sql
+├── Assessment_Q3.sql
+└── Assessment_Q4.sql
 
+```

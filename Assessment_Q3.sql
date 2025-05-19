@@ -1,5 +1,5 @@
 -- ===================================================================
--- Find all active plans with no savings transactions in the last 365 days
+-- Account Inactivity Alert (no savings transactions in the last 365 days)
 -- ===================================================================
 
 -- Pre-compute the cutoff date once
@@ -12,14 +12,7 @@ WITH
       id,
       owner_id,
       is_regular_savings,
-      open_savings_plan,
-      is_emergency_plan,
-      is_personal_challenge,
-      is_donation_plan,
-      is_a_goal,
-      is_fixed_investment,
-      is_a_fund,
-      is_managed_portfolio
+      is_a_fund
     FROM plans_plan
     WHERE is_archived = 0
       AND is_deleted  = 0
@@ -31,6 +24,7 @@ WITH
       plan_id,
       MAX(transaction_date) AS last_transaction_date
     FROM savings_savingsaccount
+    where confirmed_amount > 0
     GROUP BY plan_id
   )
 
@@ -41,15 +35,8 @@ SELECT
   -- Classify plan as Savings, Investment, or Unknown
   CASE
     WHEN p.is_regular_savings    = 1
-      OR p.open_savings_plan     = 1
-      OR p.is_emergency_plan     = 1
-      OR p.is_personal_challenge = 1
-      OR p.is_donation_plan      = 1
-      OR p.is_a_goal             = 1
       THEN 'Savings'
-    WHEN p.is_fixed_investment   = 1
-      OR p.is_a_fund             = 1
-      OR p.is_managed_portfolio  = 1
+    WHEN p.is_a_fund             = 1
       THEN 'Investment'
     ELSE 'Unknown'
   END AS type,

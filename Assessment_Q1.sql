@@ -1,3 +1,7 @@
+-- ===========================================================
+-- High-Value Customers with Multiple Products
+-- ===========================================================
+
 -- ------------------------------------------------------------
 -- 1. Aggregate savings account data per customer
 -- ------------------------------------------------------------
@@ -5,11 +9,11 @@ WITH SavingsAgg AS (
     SELECT
         owner_id,
         COUNT(*)    AS savings_count,   -- how many savings transactions/accounts
-        SUM(amount) AS total_deposit    -- total deposited amount
+        SUM(confirmed_amount) AS total_deposit    -- total deposited amount
     FROM
         savings_savingsaccount
 	WHERE 
-		amount > 0 						-- ensure at least one funded savings account
+		confirmed_amount > 0 						-- ensure at least one funded savings account
     GROUP BY
         owner_id
 ),
@@ -23,6 +27,9 @@ PlanAgg AS (
         COUNT(*) AS investment_count    -- number of active investment plans
     FROM
         plans_plan
+        
+	WHERE 
+		is_a_fund = 1
     GROUP BY
         owner_id
 )
@@ -31,11 +38,11 @@ PlanAgg AS (
 -- 3. Combine user info with their savings & plan aggregates
 -- ------------------------------------------------------------
 SELECT
-    u.id                                   AS customer_id,
+    u.id                                   AS owner_id,
     CONCAT(u.first_name, ' ', u.last_name) AS name,              -- full name
     s.savings_count,                                          
     p.investment_count,
-    s.total_deposit
+    s.total_deposit							AS total_deposits
 FROM
     users_customuser AS u
 
